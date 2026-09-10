@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>✈️ AI Travel Agent</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #1a2744 100%);
+      border-bottom: 1px solid #2d4a6e;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    header .logo { font-size: 28px; }
+    header .title-group h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #f0f6ff;
+      letter-spacing: -0.3px;
+    }
+    header .title-group p {
+      font-size: 12px;
+      color: #7ca3cc;
+      margin-top: 1px;
+    }
+    header .badge {
+      margin-left: auto;
+      background: #1d4ed8;
+      color: #bfdbfe;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      border: 1px solid #3b82f6;
+    }
+
+    /* ── Quick suggestion chips ── */
+    #suggestions {
+      display: flex;
+      gap: 8px;
+      padding: 10px 16px;
+      overflow-x: auto;
+      flex-shrink: 0;
+      background: #0f172a;
+      border-bottom: 1px solid #1e293b;
+      scrollbar-width: none;
+    }
+    #suggestions::-webkit-scrollbar { display: none; }
+    .chip {
+      white-space: nowrap;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+    }
+    .chip:hover {
+      background: #1d4ed8;
+      border-color: #3b82f6;
+      color: #e0f2fe;
+    }
+
+    /* ── Chat area ── */
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scroll-behavior: smooth;
+    }
+
+    .message {
+      display: flex;
+      gap: 10px;
+      max-width: 780px;
+      width: 100%;
+    }
+    .message.user { align-self: flex-end; flex-direction: row-reverse; }
+    .message.assistant { align-self: flex-start; }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .message.user .avatar { background: #1d4ed8; }
+    .message.assistant .avatar { background: #1e3a5f; border: 1px solid #2d4a6e; }
+
+    .bubble {
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.65;
+      max-width: calc(100% - 44px);
+      word-break: break-word;
+    }
+    .message.user .bubble {
+      background: #1d4ed8;
+      color: #eff6ff;
+      border-bottom-right-radius: 4px;
+    }
+    .message.assistant .bubble {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-bottom-left-radius: 4px;
+      border: 1px solid #2d4055;
+    }
+
+    /* Markdown-like rendering */
+    .bubble p { margin: 6px 0; }
+    .bubble p:first-child { margin-top: 0; }
+    .bubble p:last-child { margin-bottom: 0; }
+    .bubble strong { color: #93c5fd; }
+    .bubble em { color: #c4b5fd; }
+    .bubble ul, .bubble ol { padding-left: 18px; margin: 6px 0; }
+    .bubble li { margin: 3px 0; }
+    .bubble h3 { color: #60a5fa; font-size: 14px; margin: 10px 0 4px; }
+    .bubble h2 { color: #7dd3fc; font-size: 15px; margin: 12px 0 6px; }
+    .bubble hr { border: none; border-top: 1px solid #334155; margin: 10px 0; }
+    .bubble code {
+      background: #0f172a;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #f472b6;
+    }
+
+    /* Typing indicator */
+    .typing-bubble {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 14px 18px;
+    }
+    .dot {
+      width: 7px; height: 7px;
+      background: #60a5fa;
+      border-radius: 50%;
+      animation: bounce 1.2s infinite ease-in-out;
+    }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+      40% { transform: scale(1.2); opacity: 1; }
+    }
+
+    /* ── Input bar ── */
+    #input-bar {
+      flex-shrink: 0;
+      background: #0f172a;
+      border-top: 1px solid #1e293b;
+      padding: 12px 16px;
+    }
+    #input-form {
+      display: flex;
+      gap: 10px;
+      max-width: 780px;
+      margin: 0 auto;
+    }
+    #user-input {
+      flex: 1;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      border-radius: 12px;
+      padding: 11px 16px;
+      font-size: 14px;
+      resize: none;
+      font-family: inherit;
+      line-height: 1.5;
+      max-height: 120px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    #user-input::placeholder { color: #475569; }
+    #user-input:focus { border-color: #3b82f6; }
+
+    #send-btn {
+      background: #1d4ed8;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      width: 44px;
+      height: 44px;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      align-self: flex-end;
+      transition: background 0.15s;
+    }
+    #send-btn:hover:not(:disabled) { background: #2563eb; }
+    #send-btn:disabled { background: #1e3a5f; cursor: not-allowed; opacity: 0.6; }
+
+    #input-hint {
+      text-align: center;
+      font-size: 11px;
+      color: #334155;
+      margin-top: 6px;
+    }
+
+    /* ── Error toast ── */
+    #error-toast {
+      display: none;
+      background: #7f1d1d;
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+      font-size: 13px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      max-width: 780px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">✈️</div>
+    <div class="title-group">
+      <h1>AI Travel Agent</h1>
+      <p>Powered by IBM Granite on watsonx.ai</p>
+    </div>
+    <div class="badge">Granite 4</div>
+  </header>
+
+  <div id="suggestions">
+    <button class="chip" data-msg="Plan a 7-day trip to Japan for first-timers with a mid-range budget">🗾 7 days in Japan</button>
+    <button class="chip" data-msg="What are the best beaches in Southeast Asia to visit in December?">🏖️ Best beaches in Dec</button>
+    <button class="chip" data-msg="I want a romantic weekend getaway in Europe under $1000 per person">💑 Romantic Europe weekend</button>
+    <button class="chip" data-msg="Suggest a backpacking route through South America for 3 weeks">🎒 S. America backpacking</button>
+    <button class="chip" data-msg="What do I need to know before visiting Dubai for the first time?">🏙️ Dubai first visit</button>
+    <button class="chip" data-msg="Plan a family road trip through the US national parks">🚗 US national parks road trip</button>
+    <button class="chip" data-msg="Best hidden gems in Italy that most tourists don't visit?">🍕 Italy hidden gems</button>
+  </div>
+
+  <div id="chat" role="log" aria-live="polite"></div>
+
+  <div id="input-bar">
+    <div id="error-toast"></div>
+    <form id="input-form" autocomplete="off">
+      <textarea
+        id="user-input"
+        rows="1"
+        placeholder="Ask me anything about travel… destinations, itineraries, tips"
+        aria-label="Your message"
+      ></textarea>
+      <button id="send-btn" type="submit" aria-label="Send">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+        </svg>
+      </button>
+    </form>
+    <p id="input-hint">Press Enter to send · Shift+Enter for new line</p>
+  </div>
+
+  <script>
+    const chat = document.getElementById('chat');
+    const form = document.getElementById('input-form');
+    const input = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const errorToast = document.getElementById('error-toast');
+
+    // Conversation history sent to the server
+    const history = [];
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function scrollToBottom() {
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function showError(msg) {
+      errorToast.textContent = '⚠️ ' + msg;
+      errorToast.style.display = 'block';
+      setTimeout(() => { errorToast.style.display = 'none'; }, 6000);
+    }
+
+    // Very simple markdown → HTML converter
+    function markdownToHtml(text) {
+      return text
+        // Headers
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        // Bold / italic
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        // Inline code
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        // Horizontal rule
+        .replace(/^---$/gm, '<hr/>')
+        // Lists
+        .replace(/^\* (.+)$/gm, '<li>$1</li>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+        // Wrap consecutive <li> in <ul>
+        .replace(/((<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>')
+        // Paragraphs (double newline)
+        .split(/\n{2,}/)
+        .map(block => {
+          if (/^<(h[23]|ul|hr|li)/.test(block.trim())) return block;
+          return `<p>${block.replace(/\n/g, '<br/>')}</p>`;
+        })
+        .join('\n');
+    }
+
+    function addMessage(role, text) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `message ${role}`;
+
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      avatar.textContent = role === 'user' ? '👤' : '🤖';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.innerHTML = role === 'assistant' ? markdownToHtml(text) : escapeHtml(text);
+
+      wrapper.appendChild(avatar);
+      wrapper.appendChild(bubble);
+      chat.appendChild(wrapper);
+      scrollToBottom();
+      return wrapper;
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br/>');
+    }
+
+    function addTypingIndicator() {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'message assistant';
+      wrapper.id = 'typing';
+
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      avatar.textContent = '🤖';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble typing-bubble';
+      bubble.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+
+      wrapper.appendChild(avatar);
+      wrapper.appendChild(bubble);
+      chat.appendChild(wrapper);
+      scrollToBottom();
+    }
+
+    function removeTypingIndicator() {
+      const el = document.getElementById('typing');
+      if (el) el.remove();
+    }
+
+    // ── Send message ─────────────────────────────────────────────────────────
+
+    async function sendMessage(text) {
+      if (!text.trim()) return;
+
+      errorToast.style.display = 'none';
+      input.value = '';
+      input.style.height = 'auto';
+      sendBtn.disabled = true;
+
+      addMessage('user', text);
+      history.push({ role: 'user', content: text });
+      addTypingIndicator();
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: history }),
+        });
+
+        const data = await res.json();
+        removeTypingIndicator();
+
+        if (!res.ok) {
+          showError(data.error || 'An error occurred.');
+          history.pop(); // remove user message if failed
+          return;
+        }
+
+        const reply = data.reply;
+        history.push({ role: 'assistant', content: reply });
+        addMessage('assistant', reply);
+      } catch (err) {
+        removeTypingIndicator();
+        showError('Network error. Is the server running?');
+        history.pop();
+      } finally {
+        sendBtn.disabled = false;
+        input.focus();
+      }
+    }
+
+    // ── Event listeners ───────────────────────────────────────────────────────
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      sendMessage(input.value);
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage(input.value);
+      }
+    });
+
+    // Auto-resize textarea
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    });
+
+    // Quick suggestion chips
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        sendMessage(chip.dataset.msg);
+      });
+    });
+
+    // ── Welcome message ───────────────────────────────────────────────────────
+    addMessage('assistant',
+      `👋 **Welcome! I'm your AI Travel Agent**, powered by IBM Granite on watsonx.ai.
+
+I can help you with:
+- **Destination recommendations** tailored to your interests & budget
+- **Day-by-day itineraries** for any trip length
+- **Accommodation & transport** advice
+- **Travel tips** — visa info, local customs, best times to visit
+- **Budget breakdowns** so you can plan confidently
+
+Where in the world would you like to go? Tell me your destination, interests, budget, and how long you have — and I'll craft your perfect travel plan! ✈️`
+    );
+
+    input.focus();
+  </script>
+</body>
+</html>
